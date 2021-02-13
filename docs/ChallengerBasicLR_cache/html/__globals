@@ -1,0 +1,6 @@
+challenger	$	$<-	%>%	::	as.factor	c	count_distress	count_pressure	distress_ct	F	group_by	kable_styling	n	pressure	rename	select	summarise
+plots	$	$<-	aes	as.factor	distress_ct	element_text	geom_point	geom_smooth	ggplot	labs	position_jitterdodge	pressure	temperature	theme	theme_calc
+lm	$	$<-	~	as.character	as.numeric	lm	tab_model
+lm compaison	::	anova	lm1	lm2	lm3
+prediction	data.frame	lm1	options	predict	round
+meantemp	$	launch	mean	round

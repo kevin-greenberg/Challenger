@@ -1,0 +1,117 @@
+---
+title: "Challenger dataset"
+author: "Kevin Greenberg"
+date: "11/7/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+# Overview of the dataset {#anchortop}
+The data set looks at the challenger test flights, specifically the o-rings that were under distressed based on the temperature and pressure. The purpose of here is to provide a simple report for presenting basic visualizations, statistics, and prediction for the what leads to an o-ring being distressed. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(stats)
+library(tidyverse)
+library(sjPlot)
+library(ggthemes)
+# Need the knitr package to set chunk options
+library(knitr)
+library(kableExtra)
+
+# Set knitr options for knitting code into the report:
+# - Don't print out code (echo)
+# - Save results so that code blocks aren't re-run unless code changes (cache),
+# _or_ a relevant earlier code block changed (autodep), but don't re-run if the
+# only thing that changed was the comments (cache.comments)
+# - Don't clutter R output with messages or warnings (message, warning)
+  # This _will_ leave error messages showing up in the knitted report
+opts_chunk$set(echo=FALSE,
+               cache=TRUE, autodep=TRUE, cache.comments=FALSE,
+               message=FALSE, warning=FALSE)
+hook_plot = knit_hooks$get('plot')
+knit_hooks$set(plot = function(x, options) paste('\n', hook_plot(x, options), sep = '')) # Prevents text from wrapping plots
+
+launch <- read.csv("challenger.csv")
+```
+
+
+### Summary statistics for the data 
+```{r meantemp}
+mt <- mean(launch$temperature)
+mt <- round(mt,2)
+```
+
+There were 23 trial launches in the data set and each launch had 6 o-rings. The average temperature for the launches was `r mt`˚F. Below we can see the pressure was a controlled variable and the number of o-rings that were distressed in the launches.
+```{r challenger, comment = '', echo=FALSE}
+launch$pressure <- as.factor(launch$pressure)
+
+pr <- launch %>% group_by(pressure) %>% summarise(count_pressure = n())%>%
+select(count_pressure, pressure)%>%
+rename(c(`Pressure` = pressure, `Number of launches` = count_pressure))
+
+knitr::kable(pr) %>%
+  kable_styling(full_width = F,position = "float_left")
+
+dr <- launch %>% group_by(distress_ct) %>% summarise(count_distress = n())%>%
+select(count_distress, distress_ct)%>%
+rename(c(`Number of distressed o-rings` = distress_ct, `Number of launches` = count_distress))
+
+knitr::kable(dr) %>%
+  kable_styling(full_width = F, position = "right")
+```
+
+
+
+### Visualize the data
+We see from the trend line that likelihood of o-ring distress decreases as the temperature increases. In addition, from the pressure we see that as pressure increase (blue squares) the likelihood of o-ring distress increases. In short, when there is high pressure and low temperature it is more likely for an o-ring to be in distress.
+
+```{r plots, echo=FALSE}
+launch$pressure <- as.factor(launch$pressure)
+
+ggplot(launch, aes(y = distress_ct, x = temperature)) + 
+  geom_point(aes(shape = pressure, color = pressure), position = position_jitterdodge(dodge.width=0.4), size = 3) +
+  labs(x="Temperature (˚F)", 
+       y="Number of distressed o-rings(out of 6)", 
+       title="Number of distressed o-rings by temperature", 
+       caption = "Source: challenger.csv",
+       color = "Pressure",
+       shape = "Pressure") +
+      theme_calc() +
+      theme(plot.title = element_text(hjust = 0.5)) +
+     geom_smooth(method='lm', se = FALSE, color = 'black')
+
+
+```
+
+
+### Linear regression modeling the data
+```{r lm, echo=FALSE, tidy=TRUE}
+launch$distress_ct <- as.numeric(as.character(launch$distress_ct))
+launch$pressure <- as.numeric(as.character(launch$pressure))
+
+lm1 <- lm(distress_ct ~ temperature, data = launch)
+lm2 <- lm(distress_ct ~ temperature + pressure, data = launch)
+lm3 <- lm(distress_ct ~ temperature * pressure, data = launch) 
+tab_model(lm1,lm2,lm3, file="output.html")
+```
+### Comparing the models
+The different linear regression models do not significantly vary, indicating the simplest model is the most effective in terms accounting for variance and efficiency. That being, when the temperature is below 64˚F there is a high probability of at least 1 o-ring being distressed. In fact, 71.4% of the time an o-ring was distressed during the trials, the temperature was below 64˚F.
+
+```{r lm compaison, echo=FALSE}
+knitr::kable(anova(lm1, lm2, lm3))
+```
+
+
+```{r prediction, echo=FALSE, comment='', include=FALSE}
+options(digits=2)
+p <- predict(lm1, data.frame(temperature = 36))
+round(p,2)
+```
+### Prediction on launch day:
+The temperature during launch was 36˚F and based on our basic linear regression it is predicted `r p` o-rings will be distressed. This indicates that even with a simple algorithm it can be predicted that launching the challenger on a cold day was dangerous. However, we must consider the engineers had numerous other factors to consider and the o-rings may not have been high on the priority list. It is much easier to look mistakes in a post hoc view. 
+# 
+
+Given the dataset only has 23 observations, there is no need to run a more complex algorithm that requires training, validation and test data sets.
+
+Jump to [top](#anchortop)
